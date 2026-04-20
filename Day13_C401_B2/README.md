@@ -28,14 +28,14 @@ Luồng chat mới:
 
 ## Tech Stack
 
-| Layer | Công nghệ |
-|---|---|
-| Backend | Python + FastAPI |
-| Orchestration | LangGraph |
-| LLM | OpenAI-compatible Chat API (`BASE_URL`, mặc định model `Minimax-M2.7`) |
-| Embeddings | Jina AI (`jina-embeddings-v5-text-small`) |
-| Vector DB | **FAISS** (lưu local trong project) |
-| Frontend | Next.js 14 + React + Tailwind CSS |
+| Layer         | Công nghệ                                                              |
+| ------------- | ---------------------------------------------------------------------- |
+| Backend       | Python + FastAPI                                                       |
+| Orchestration | LangGraph                                                              |
+| LLM           | OpenAI-compatible Chat API (`BASE_URL`, mặc định model `Minimax-M2.7`) |
+| Embeddings    | Jina AI (`jina-embeddings-v5-text-small`)                              |
+| Vector DB     | **FAISS** (lưu local trong project)                                    |
+| Frontend      | Next.js 14 + React + Tailwind CSS                                      |
 
 ## Cấu trúc Project
 
@@ -109,13 +109,14 @@ npm run dev
 
 ## API
 
-| Endpoint | Method | Mô tả |
-|---|---|---|
-| `/health` | GET | Health check |
-| `/students` | GET | Danh sách sinh viên mock |
-| `/chat` | POST | Gửi tin nhắn |
+| Endpoint    | Method | Mô tả                    |
+| ----------- | ------ | ------------------------ |
+| `/health`   | GET    | Health check             |
+| `/students` | GET    | Danh sách sinh viên mock |
+| `/chat`     | POST   | Gửi tin nhắn             |
 
 **Request `/chat`:**
+
 ```json
 {
   "thread_id": "8b20f5fa-3fb0-42cd-9f8b-d3fd876f5013",
@@ -124,6 +125,7 @@ npm run dev
 ```
 
 **Response khi thiếu MSSV cho câu hỏi cá nhân:**
+
 ```json
 {
   "thread_id": "8b20f5fa-3fb0-42cd-9f8b-d3fd876f5013",
@@ -136,6 +138,7 @@ npm run dev
 ```
 
 **Tin nhắn tiếp theo để resume cùng hội thoại:**
+
 ```json
 {
   "thread_id": "8b20f5fa-3fb0-42cd-9f8b-d3fd876f5013",
@@ -145,21 +148,22 @@ npm run dev
 
 ## Test Cases
 
-| Câu hỏi | Tool được gọi |
-|---|---|
-| "Quy chế đăng ký tín chỉ như thế nào?" | `RAG` |
-| "Cho tôi xem lịch học tuần này" | `needs_student_id` → `get_schedule` |
-| "Điểm môn Toán của tôi bao nhiêu?" | `needs_student_id` → `get_grades` |
-| "Lịch thi cuối kỳ" | `needs_student_id` → `get_exam` |
-| "Kiểm tra học phí của tôi" | `needs_student_id` → `get_tuition` |
-| "Thời tiết hôm nay thế nào?" | `Fallback` |
-| "Quy chế thi lại và lịch thi cuối kỳ" | `RAG + get_exam` |
+| Câu hỏi                                | Tool được gọi                       |
+| -------------------------------------- | ----------------------------------- |
+| "Quy chế đăng ký tín chỉ như thế nào?" | `RAG`                               |
+| "Cho tôi xem lịch học tuần này"        | `needs_student_id` → `get_schedule` |
+| "Điểm môn Toán của tôi bao nhiêu?"     | `needs_student_id` → `get_grades`   |
+| "Lịch thi cuối kỳ"                     | `needs_student_id` → `get_exam`     |
+| "Kiểm tra học phí của tôi"             | `needs_student_id` → `get_tuition`  |
+| "Thời tiết hôm nay thế nào?"           | `Fallback`                          |
+| "Quy chế thi lại và lịch thi cuối kỳ"  | `RAG + get_exam`                    |
 
 ## Mock Data
 
 **Sinh viên:** SV001 (Nguyen Van An), SV002 (Tran Thi Bich), SV003 (Le Hoang Cuong)
 
 **Tài liệu nội bộ:**
+
 - Quy chế Đào tạo Tín chỉ
 - Quy định Học phí và Miễn giảm
 - Nội quy Thi cử và Kiểm tra
