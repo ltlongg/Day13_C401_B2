@@ -19,7 +19,10 @@ from app.documents.metadata_store import (
 )
 from app.metrics import record_error, record_request, snapshot as metrics_snapshot
 from app.documents.pdf_parser import extract_text_from_pdf
-from app.logging_config import configure_logging
+from app.incidents import disable as disable_incident
+from app.incidents import enable as enable_incident
+from app.incidents import status as incident_status
+from app.logging_config import configure_logging, get_logger
 from app.middleware import CorrelationIdMiddleware
 from app.mock_data.students import get_all_students
 from app.rag.ingestion import (
@@ -80,6 +83,7 @@ def _estimate_quality_score(result: dict) -> float:
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 configure_logging()
+log = get_logger()
 
 
 @asynccontextmanager
@@ -119,7 +123,7 @@ def login(request: LoginRequest):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "incidents": incident_status()}
 
 
 @app.get("/metrics")
@@ -165,6 +169,36 @@ def chat(
         requires_student_id=result.get("requires_student_id", False),
         student_id=result.get("student_id"),
     )
+
+
+@app.post("/incidents/{name}/enable")
+def enable_runtime_incident(name: str, current_user: dict = Depends(require_admin)):
+    try:
+        enable_incident(name)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    log.warning(
+        "incident_enabled",
+        service="control",
+        payload={"name": name, "username": current_user["username"]},
+    )
+    return {"ok": True, "incidents": incident_status()}
+
+
+@app.post("/incidents/{name}/disable")
+def disable_runtime_incident(name: str, current_user: dict = Depends(require_admin)):
+    try:
+        disable_incident(name)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    log.warning(
+        "incident_disabled",
+        service="control",
+        payload={"name": name, "username": current_user["username"]},
+    )
+    return {"ok": True, "incidents": incident_status()}
 
 
 @app.get("/admin/documents")

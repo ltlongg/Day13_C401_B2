@@ -1,0 +1,5 @@
+{
+  "rag_slow": "Artificially delays the RAG stage to simulate slow retrieval and elevated request latency.",
+  "tool_fail": "Forces agent tool execution to fail so logs and traces show a tool-path incident.",
+  "llm_fault": "Forces the router LLM step to fail before the model request completes."
+}
