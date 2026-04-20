@@ -1,0 +1,6 @@
+{"name":"rag_policy","username":"sinhvien1","password":"sv001","message":"Quy chế đăng ký tín chỉ như thế nào?"}
+{"name":"student_schedule","username":"sinhvien1","password":"sv001","message":"Cho tôi xem lịch học tuần này"}
+{"name":"student_grades","username":"sinhvien2","password":"sv002","message":"Điểm môn Toán của tôi bao nhiêu?"}
+{"name":"mixed_rag_exam","username":"sinhvien3","password":"sv003","message":"Quy chế thi lại và lịch thi cuối kỳ của tôi"}
+{"name":"admin_schedule_sv002","username":"admin","password":"admin123","message":"Cho tôi xem lịch học tuần này của sinh viên SV002","student_id":"SV002"}
+{"name":"general_chat","username":"sinhvien1","password":"sv001","message":"Xin chào bạn, bạn có thể giúp gì cho tôi?"}

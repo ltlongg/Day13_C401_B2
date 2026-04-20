@@ -6,13 +6,25 @@ from openai import OpenAI
 from app.config import OPENAI_API_KEY, OPENAI_MODEL, BASE_URL
 from app.agents.tools import get_all_tools
 from app.agents.executor import normalize_tool_calls
+from app.incidents import is_enabled
+from app.logging_config import get_logger
 from app.system_prompts import ROUTER_SYSTEM_PROMPT
 
 client = OpenAI(api_key=OPENAI_API_KEY, base_url=BASE_URL)
+log = get_logger()
 
 
 def detect_routes(query: str) -> dict[str, Any]:
     """Ask the LLM router which branch or tools should handle the query."""
+    if is_enabled("llm_fault"):
+        log.warning(
+            "incident_triggered",
+            service="router",
+            incident="llm_fault",
+            payload={"stage": "route_query", "query": query[:120]},
+        )
+        raise RuntimeError("Incident llm_fault triggered during router selection")
+
     tools = get_all_tools()
 
     response = client.chat.completions.create(
