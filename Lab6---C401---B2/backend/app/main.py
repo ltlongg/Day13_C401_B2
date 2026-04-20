@@ -1,6 +1,7 @@
 import os
 import uuid
 from contextlib import asynccontextmanager
+from time import perf_counter
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +17,7 @@ from app.documents.metadata_store import (
     get_all_documents as get_all_doc_meta,
     remove_document,
 )
+from app.metrics import record_error, record_request, snapshot as metrics_snapshot
 from app.documents.pdf_parser import extract_text_from_pdf
 from app.logging_config import configure_logging
 from app.middleware import CorrelationIdMiddleware
@@ -58,6 +60,22 @@ class LoginResponse(BaseModel):
     display_name: str
     student_id: str | None = None
     token: str
+
+
+def _estimate_quality_score(result: dict) -> float:
+    if result.get("requires_student_id"):
+        return 0.4
+
+    tool_used = str(result.get("tool_used", ""))
+    if tool_used == "fallback":
+        return 0.6
+    if tool_used == "general_chat":
+        return 0.8
+    if result.get("sources"):
+        return 0.95
+    if tool_used:
+        return 0.9
+    return 0.75
 
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -104,6 +122,11 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/metrics")
+async def metrics():
+    return metrics_snapshot()
+
+
 @app.get("/students", response_model=list[StudentInfo])
 async def list_students(current_user: dict = Depends(require_admin)):
     students = get_all_students()
@@ -115,12 +138,23 @@ def chat(
     request: ChatRequest,
     current_user: dict = Depends(get_current_user),
 ):
+    start = perf_counter()
     effective_student_id = request.student_id
     if current_user["role"] == "student":
         effective_student_id = current_user.get("student_id")
 
-    result = run_assistant_turn(
-        request.thread_id, request.message, student_id=effective_student_id
+    try:
+        result = run_assistant_turn(
+            request.thread_id, request.message, student_id=effective_student_id
+        )
+    except Exception as exc:
+        record_error(type(exc).__name__)
+        raise
+
+    latency_ms = round((perf_counter() - start) * 1000)
+    record_request(
+        latency_ms=latency_ms,
+        quality_score=_estimate_quality_score(result),
     )
 
     return ChatResponse(
