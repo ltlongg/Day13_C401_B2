@@ -40,7 +40,7 @@
 
 ### 3.3 Alerts & Runbook
 - `[ALERT_RULES_SCREENSHOT]`: docs/evidence/alert-rules.png
-- `[SAMPLE_RUNBOOK_LINK]`: [docs/alerts.md](docs/alerts.md)
+- `[SAMPLE_RUNBOOK_LINK]`: docs/alerts.md
 
 ---
 
