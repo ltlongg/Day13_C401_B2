@@ -7,26 +7,7 @@
     "upload_date": "2026-04-09T11:22:41.089240",
     "uploaded_by": "admin",
     "page_count": 1,
-    "chunk_count": 6,
-    "data_classification": "pii-test-fixture",
-    "owner_email": "admissions.owner@example.edu",
-    "contact_phone": "+84 912 345 678",
-    "mailing_address": "so 12 duong Nguyen Trai, quan 1, thanh pho Ho Chi Minh",
-    "passport_number": "B12345678",
-    "cccd_number": "079123456789",
-    "billing_card_test": "4111 1111 1111 1111",
-    "review_notes": "Primary contact uses dean.office@example.edu and courier delivery to so 12 duong Nguyen Trai, quan 1, thanh pho Ho Chi Minh.",
-    "alternate_contacts": [
-      {
-        "name": "Tran Thi B",
-        "email": "ttb.admissions@example.edu",
-        "phone": "090 123 4567"
-      },
-      {
-        "name": "Nguyen Van C",
-        "passport": "C9876543"
-      }
-    ]
+    "chunk_count": 6
   },
   {
     "doc_id": "2f6d57f1d5f7",
@@ -36,18 +17,7 @@
     "upload_date": "2026-04-09T11:22:54.684285",
     "uploaded_by": "admin",
     "page_count": 1,
-    "chunk_count": 9,
-    "data_classification": "pii-test-fixture",
-    "owner_email": "registrar.qa@example.edu",
-    "emergency_contact_phone": "0987.654.321",
-    "mailing_address": "45 Nguyen Hue street, district 1, city Ho Chi Minh",
-    "passport_number": "P7654321",
-    "review_ticket": {
-      "reporter_email": "ops.security@example.org",
-      "reporter_phone": "0912-456-888",
-      "shipping_address": "so 120 duong Le Loi, phuong Ben Nghe, quan 1",
-      "backup_card": "4111-1111-1111-1111"
-    }
+    "chunk_count": 9
   },
   {
     "doc_id": "1f9aac22b198",
@@ -57,20 +27,7 @@
     "upload_date": "2026-04-09T11:23:06.413728",
     "uploaded_by": "admin",
     "page_count": 2,
-    "chunk_count": 10,
-    "data_classification": "pii-test-fixture",
-    "student_snapshot": {
-      "student_email": "student.pii@example.com",
-      "guardian_phone": "0912-888-999",
-      "home_address": "so 88 hem 5 duong Dien Bien Phu, phuong 21, quan Binh Thanh",
-      "passport": "A76543210",
-      "credit_card_test": "4111 1111 1111 1111",
-      "cccd": "001203456789"
-    },
-    "compliance_notes": [
-      "Send copy to family.office@example.com",
-      "Archive paper version at so 8 duong Pasteur, quan 3"
-    ]
+    "chunk_count": 10
   },
   {
     "doc_id": "67beb3da387d",

@@ -1,5 +1,4 @@
 import re
-import time
 from typing import Any, TypedDict
 
 from langgraph.checkpoint.memory import InMemorySaver
@@ -9,14 +8,10 @@ from langgraph.types import Command, interrupt
 from app.agents.executor import execute_and_respond
 from app.fallback.handler import get_fallback_response
 from app.general.generator import generate_general_response, should_use_general_chat
-from app.incidents import is_enabled
-from app.logging_config import get_logger
 from app.mock_data.students import get_student_info
 from app.rag.generator import generate_rag_response
 from app.rag.retrieval import retrieve
 from app.router import detect_routes, get_search_query
-
-log = get_logger()
 
 
 class AssistantState(TypedDict, total=False):
@@ -159,14 +154,6 @@ def run_rag_node(state: AssistantState) -> dict[str, Any]:
     query = state["query"]
 
     for rag_call in rag_calls:
-        if is_enabled("rag_slow"):
-            log.warning(
-                "incident_triggered",
-                service="assistant",
-                incident="rag_slow",
-                payload={"query": query[:120]},
-            )
-            time.sleep(2.5)
         search_query = get_search_query(rag_call, query)
         chunks = retrieve(search_query)
         rag_result = generate_rag_response(search_query, chunks)

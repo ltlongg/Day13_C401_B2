@@ -1,10 +1,8 @@
 import secrets
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends, Header, HTTPException, status
 
 _sessions: dict[str, dict] = {}
-bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def create_session(user: dict) -> str:
@@ -17,16 +15,14 @@ def get_user_from_token(token: str) -> dict | None:
     return _sessions.get(token)
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-) -> dict:
-    if not credentials or credentials.scheme.lower() != "bearer":
+def get_current_user(authorization: str | None = Header(default=None)) -> dict:
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Thiếu thông tin xác thực",
         )
 
-    token = credentials.credentials.strip()
+    token = authorization.split(" ", 1)[1].strip()
     user = get_user_from_token(token)
     if not user:
         raise HTTPException(
