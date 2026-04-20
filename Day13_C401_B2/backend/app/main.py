@@ -3,11 +3,10 @@ import uuid
 from contextlib import asynccontextmanager
 from time import perf_counter
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from structlog.contextvars import bind_contextvars
 
 from app.assistant_graph import run_assistant_turn
 from app.auth.sessions import create_session, get_current_user, require_admin
@@ -18,13 +17,14 @@ from app.documents.metadata_store import (
     get_all_documents as get_all_doc_meta,
     remove_document,
 )
+from app.metrics import record_error, record_request, snapshot as metrics_snapshot
 from app.documents.pdf_parser import extract_text_from_pdf
+from app.incidents import disable as disable_incident
+from app.incidents import enable as enable_incident
+from app.incidents import status as incident_status
 from app.logging_config import configure_logging, get_logger
-from app.metrics import record_error, record_request
-from app.metrics import snapshot as metrics_snapshot
 from app.middleware import CorrelationIdMiddleware
 from app.mock_data.students import get_all_students
-from app.pii import hash_user_id, summarize_text
 from app.rag.ingestion import (
     add_document_to_index,
     initialize_index,
@@ -65,24 +65,25 @@ class LoginResponse(BaseModel):
     token: str
 
 
+def _estimate_quality_score(result: dict) -> float:
+    if result.get("requires_student_id"):
+        return 0.4
+
+    tool_used = str(result.get("tool_used", ""))
+    if tool_used == "fallback":
+        return 0.6
+    if tool_used == "general_chat":
+        return 0.8
+    if result.get("sources"):
+        return 0.95
+    if tool_used:
+        return 0.9
+    return 0.75
+
+
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 configure_logging()
-logger = get_logger()
-
-
-def _estimate_tokens(text: str) -> int:
-    cleaned = (text or "").strip()
-    if not cleaned:
-        return 0
-    # Simple heuristic: ~4 characters/token for mixed VN/EN short prompts.
-    return max(1, len(cleaned) // 4)
-
-
-def _estimate_cost_usd(tokens_in: int, tokens_out: int) -> float:
-    # Lab-only approximation so cost panel is non-zero even without provider usage metadata.
-    in_rate = 0.000001
-    out_rate = 0.000002
-    return round(tokens_in * in_rate + tokens_out * out_rate, 6)
+log = get_logger()
 
 
 @asynccontextmanager
@@ -100,7 +101,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(CorrelationIdMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
@@ -108,6 +108,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(CorrelationIdMiddleware)
 
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
@@ -122,7 +123,7 @@ def login(request: LoginRequest):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "incidents": incident_status()}
 
 
 @app.get("/metrics")
@@ -139,33 +140,12 @@ async def list_students(current_user: dict = Depends(require_admin)):
 @app.post("/chat", response_model=ChatResponse)
 def chat(
     request: ChatRequest,
-    http_request: Request,
     current_user: dict = Depends(get_current_user),
 ):
     start = perf_counter()
     effective_student_id = request.student_id
     if current_user["role"] == "student":
         effective_student_id = current_user.get("student_id")
-    correlation_id = getattr(getattr(http_request, "state", None), "correlation_id", "")
-    request_id = correlation_id or f"req-{uuid.uuid4().hex[:8]}"
-    feature = "qa"
-    model = os.getenv("MODEL_NAME", "claude-sonnet-4-5")
-    session_id = f"s-{request.thread_id[:8]}"
-    user_hash = hash_user_id(current_user.get("username", "anonymous"))
-    bind_contextvars(
-        service="api",
-        env=os.getenv("ENV", "dev"),
-        correlation_id=request_id,
-        user_id_hash=user_hash,
-        session_id=session_id,
-        feature=feature,
-        model=model,
-    )
-
-    logger.info(
-        "request_received",
-        payload={"message_preview": summarize_text(request.message)},
-    )
 
     try:
         result = run_assistant_turn(
@@ -173,43 +153,12 @@ def chat(
         )
     except Exception as exc:
         record_error(type(exc).__name__)
-        logger.exception(
-            "request_failed",
-            error_type=type(exc).__name__,
-            payload={"message_preview": summarize_text(request.message)},
-        )
         raise
 
-    latency_ms = int((perf_counter() - start) * 1000)
-    tokens_in = int(result.get("tokens_in", 0) or 0)
-    tokens_out = int(result.get("tokens_out", 0) or 0)
-    if tokens_in == 0:
-        tokens_in = _estimate_tokens(request.message)
-    if tokens_out == 0:
-        tokens_out = _estimate_tokens(result.get("response", ""))
-
-    cost_usd = float(result.get("cost_usd", 0.0) or 0.0)
-    if cost_usd == 0.0:
-        cost_usd = _estimate_cost_usd(tokens_in, tokens_out)
-
-    quality_score = float(result.get("quality_score", 0.0) or 0.0)
-    if quality_score == 0.0:
-        response_text = (result.get("response") or "").strip()
-        quality_score = 1.0 if len(response_text) >= 80 else 0.75 if response_text else 0.5
+    latency_ms = round((perf_counter() - start) * 1000)
     record_request(
         latency_ms=latency_ms,
-        cost_usd=cost_usd,
-        tokens_in=tokens_in,
-        tokens_out=tokens_out,
-        quality_score=quality_score,
-    )
-    logger.info(
-        "response_sent",
-        latency_ms=latency_ms,
-        tokens_in=tokens_in,
-        tokens_out=tokens_out,
-        cost_usd=cost_usd,
-        payload={"answer_preview": summarize_text(result.get("response", ""))},
+        quality_score=_estimate_quality_score(result),
     )
 
     return ChatResponse(
@@ -220,6 +169,36 @@ def chat(
         requires_student_id=result.get("requires_student_id", False),
         student_id=result.get("student_id"),
     )
+
+
+@app.post("/incidents/{name}/enable")
+def enable_runtime_incident(name: str, current_user: dict = Depends(require_admin)):
+    try:
+        enable_incident(name)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    log.warning(
+        "incident_enabled",
+        service="control",
+        payload={"name": name, "username": current_user["username"]},
+    )
+    return {"ok": True, "incidents": incident_status()}
+
+
+@app.post("/incidents/{name}/disable")
+def disable_runtime_incident(name: str, current_user: dict = Depends(require_admin)):
+    try:
+        disable_incident(name)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    log.warning(
+        "incident_disabled",
+        service="control",
+        payload={"name": name, "username": current_user["username"]},
+    )
+    return {"ok": True, "incidents": incident_status()}
 
 
 @app.get("/admin/documents")
